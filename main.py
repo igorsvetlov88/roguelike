@@ -3,9 +3,9 @@ import pygame
 from PIL import Image
 from random import choices, choice, randint
 
-STRUCTURES_RANGE = [5, 20]  # from: _ to: _
+STRUCTURES_RANGE = [20, 50]  # from: _ to: _
 EXTENDED_RANGE = [1, 5]  # from: _ to: _
-ENEMIES_MULTI_RANGE = [int(numb * 10) for numb in [0.2, 0.6]]  # from: _ to: _
+ENEMIES_MULTI_RANGE = [int(numb * 10) for numb in [0.2, 0.8]]  # from: _ to: _
 start = {(0, 0): 1, (1, 0): 1, (2, 0): 1, (1, 1): 1, (0, 1): 1, (0, 2): 1, (-1, 1): 1, (-1, 0): 1,
          (-2, 0): 1, (-1, -1): 1, (0, -1): 1, (0, -2): 1, (1, -1): 1}
 
@@ -43,6 +43,7 @@ class Player(Character):
                 [en.make_step() for en in enemies]
                 global can_go_next
                 can_go_next = False
+                break
 
     def attack(self, event):
         for args in [[[0, -1], pygame.K_UP], [[0, 1], pygame.K_DOWN],
@@ -57,6 +58,7 @@ class Player(Character):
                 [en.make_step() for en in enemies]
                 global can_go_next
                 can_go_next = False
+                break
 
 
 class BasicEnemy(Character):
@@ -208,7 +210,7 @@ def make_new_level():
         len(flat) < (numb_enemies :=
                      int(structures * randint(ENEMIES_MULTI_RANGE[0],
                                               ENEMIES_MULTI_RANGE[1]) / 10)) else numb_enemies
-    for i in range(randint(numb_enemies if numb_enemies >= 3 else 0, numb_enemies)):
+    for i in range(numb_enemies):
         cell = choice(list(flat))
         enemies.append(BasicEnemy(30, 10, cell, 5, 10))
         flat.pop(cell)
