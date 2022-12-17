@@ -3,12 +3,11 @@ import pygame
 from PIL import Image
 from random import choices, choice, randint
 
-STRUCTURES_RANGE = [10, 20]  # from: _ to: _
+STRUCTURES_RANGE = [5, 20]  # from: _ to: _
 EXTENDED_RANGE = [1, 5]  # from: _ to: _
-ENEMIES_MULTI_RANGE = [0.2, 0.6]  # from: _ to: _
-ENEMIES_MULTI_RANGE = [int(numb * 10) for numb in ENEMIES_MULTI_RANGE]
-card = {(0, 0): 1, (1, 0): 1, (2, 0): 1, (1, 1): 1, (0, 1): 1, (0, 2): 1, (-1, 1): 1, (-1, 0): 1,
-        (-2, 0): 1, (-1, -1): 1, (0, -1): 1, (0, -2): 1, (1, -1): 1}
+ENEMIES_MULTI_RANGE = [int(numb * 10) for numb in [0.2, 0.6]]  # from: _ to: _
+start = {(0, 0): 1, (1, 0): 1, (2, 0): 1, (1, 1): 1, (0, 1): 1, (0, 2): 1, (-1, 1): 1, (-1, 0): 1,
+         (-2, 0): 1, (-1, -1): 1, (0, -1): 1, (0, -2): 1, (1, -1): 1}
 
 
 class Character:
@@ -25,11 +24,14 @@ class Player(Character):
     def pressed_key(self, event):
         if event[pygame.K_w] or event[pygame.K_s] or event[pygame.K_a] or event[pygame.K_d]:
             self.move(event)
-        elif event[pygame.K_UP] or event[pygame.K_DOWN] or event[pygame.K_LEFT] or event[pygame.K_RIGHT]:
+        elif event[pygame.K_UP] or event[pygame.K_DOWN] or event[pygame.K_LEFT] or event[
+            pygame.K_RIGHT]:
             self.attack(event)
         if self.hp <= 0:
             global running
             running = False
+        elif event[pygame.K_e] and self.pos == exit_ladder:
+            make_new_level()
 
     def move(self, event):
         for args in [[[0, -1], pygame.K_w], [[0, 1], pygame.K_s],
@@ -113,7 +115,9 @@ class BasicEnemy(Character):
             self.find_lab_tuples(new_nexts, lb)
 
 
-def check_condition(variants, pos=None, flat=card, event=None, key=None):
+def check_condition(variants, pos=None, flat=None, event=None, key=None):
+    if flat is None:
+        flat = card
     flag = True
     if len(variants) >= 1 and variants[0]:
         flag = flag and pos in flat
@@ -162,52 +166,61 @@ def sphere_of_cells(diametr):
     return cells_of_diametr
 
 
-def make_map(structures, extended, start_map):
+def make_new_level():
+    global card, exit_ladder, enemies, focused, stopped
+
+    stopped = True
+    structures = randint(STRUCTURES_RANGE[0], STRUCTURES_RANGE[1])
+    extended = randint(EXTENDED_RANGE[0], EXTENDED_RANGE[1])
+    card = start.copy()
+
     for i in range(structures):
-        print(f"{round(i / structures * 100, 2)}%")
+        global percent
+
+        percent = i / structures * 100, 2
         cells = []
-        for cell in start_map:
-            if (cell[0] + 1, cell[1]) not in start_map:
+        for cell in card:
+            if (cell[0] + 1, cell[1]) not in card:
                 cells.append((cell[0] + 1, cell[1]))
-            if (cell[0] - 1, cell[1]) not in start_map:
+            if (cell[0] - 1, cell[1]) not in card:
                 cells.append((cell[0] - 1, cell[1]))
-            if (cell[0], cell[1] + 1) not in start_map:
+            if (cell[0], cell[1] + 1) not in card:
                 cells.append((cell[0], cell[1] + 1))
-            if (cell[0], cell[1] - 1) not in start_map:
+            if (cell[0], cell[1] - 1) not in card:
                 cells.append((cell[0], cell[1] - 1))
-        first = \
-            choices(cells, weights=[pow((abs(cell[0]) + abs(cell[1])), extended) for cell in cells])[
-                0]
+
+        first = choices(cells, weights=[pow((abs(cell[0]) + abs(cell[1])), extended) for cell in cells])[0]
         for coord in rotate(choice(places), randint(0, 3)):
-            start_map[first[0] + coord[0], first[1] + coord[1]] = 1
+            card[first[0] + coord[0], first[1] + coord[1]] = 1
+
     max_cell = (0, 0)
-    for key in start_map:
+    for key in card:
         if abs(key[0]) + abs(key[1]) > abs(max_cell[0]) + abs(max_cell[1]):
             max_cell = key
-    global exit_ladder
     exit_ladder = choice([(max_cell[0] + cell[0], max_cell[1] + cell[1])
                           for cell in sphere_of_cells(20)
-                          if (max_cell[0] + cell[0], max_cell[1] + cell[1]) in start_map])
-    return start_map
+                          if (max_cell[0] + cell[0], max_cell[1] + cell[1]) in card])
 
-
-def set_enemies(flat, structures, enemies_multi):
-    global enemies
+    enemies = []
+    flat = card.copy()
     [flat.pop(cell) for cell in sphere_of_cells(20) if cell in flat]
-    for i in range(randint(0, len(flat) if len(
-            flat) < structures * enemies_multi else int(structures * enemies_multi))):
+    numb_enemies = len(flat) if \
+        len(flat) < (numb_enemies :=
+                     int(structures * randint(ENEMIES_MULTI_RANGE[0],
+                                              ENEMIES_MULTI_RANGE[1]) / 10)) else numb_enemies
+    for i in range(randint(numb_enemies if numb_enemies >= 3 else 0, numb_enemies)):
         cell = choice(list(flat))
         enemies.append(BasicEnemy(30, 10, cell, 5, 10))
         flat.pop(cell)
-    return enemies
+
+    focused = True
+    stopped = False
+    player.pos = (0, 0)
 
 
+player = Player(100, (0, 0), 10)
 places = [load_new_place(f"paint{i}.png") for i in range(1, 5)]
-STRUCTURES = randint(STRUCTURES_RANGE[0], STRUCTURES_RANGE[1])
-EXTENDED = randint(EXTENDED_RANGE[0], EXTENDED_RANGE[1])
-card = make_map(STRUCTURES, EXTENDED, card)
-enemies = []
-set_enemies(card.copy(), STRUCTURES, randint(ENEMIES_MULTI_RANGE[0], ENEMIES_MULTI_RANGE[1]) / 10)
+make_new_level()
 
 if __name__ == '__main__':
     pygame.init()
@@ -217,9 +230,11 @@ if __name__ == '__main__':
     size = width, height = 1000, 1000
     screen = pygame.display.set_mode(size)
     running = True
+    stopped = False
+    drag = False
+    drag_offset = [0, 0]
     size = 20
 
-    player = Player(100, (0, 0), 10)
     can_go_next = True
     time_rest = 250  # промежуток между ходами в миллисекундах
     time_for_next = 0
@@ -227,43 +242,65 @@ if __name__ == '__main__':
     while running:
         screen.fill('black')
         for event in pygame.event.get():
+            if stopped:
+                continue
             if event.type == pygame.QUIT:
                 running = False
-            elif event.type == pygame.MOUSEWHEEL:
+            elif event.type == pygame.MOUSEWHEEL and (size != 1 or event.y != -1) and (size != 100 or event.y != 1):
                 size += event.y
-            elif pygame.key.get_pressed() and can_go_next:
-                player.pressed_key(pygame.key.get_pressed())
+                drag_offset = [round(drag_offset[0] * (size / (size - event.y))),
+                               round(drag_offset[1] * (size / (size - event.y)))]
+            elif event.type == pygame.MOUSEBUTTONDOWN:
+                drag = True
+            elif event.type == pygame.MOUSEBUTTONUP:
+                drag = False
+            elif event.type == pygame.MOUSEMOTION and drag:
+                drag_offset = [drag_offset[i] - event.rel[i] for i in range(2)]
+                focused = False
+            elif event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_f:
+                    focused = not focused
+                    drag_offset = [player.pos[0] * size, player.pos[1] * size]
             elif event.type == MYEVENTTYPE:
                 if not can_go_next:
                     time_for_next += timer_speed
                 if time_for_next >= time_rest:
                     can_go_next = True
                     time_for_next = 0
+            if pygame.key.get_pressed() and can_go_next:
+                player.pressed_key(pygame.key.get_pressed())
 
+        offset = [player.pos[0] * size, player.pos[1] * size] if focused else drag_offset
         for cell in card:  # поле
             pygame.draw.rect(screen,
-                             (200, 200, 200), (width // 2 + (cell[0] - player.pos[0]) * size,
-                                               height // 2 + (cell[1] - player.pos[1]) * size,
+                             (200, 200, 200), (width // 2 + cell[0] * size - offset[0] - size // 2,
+                                               height // 2 + cell[1] * size - offset[1] - size // 2,
                                                size, size), 1)
             pygame.draw.rect(screen,
-                             (150, 150, 150), (width // 2 + (cell[0] - player.pos[0]) * size + 1,
-                                               height // 2 + (cell[1] - player.pos[1]) * size + 1,
+                             (150, 150, 150), (width // 2 + cell[0] * size + 1 - offset[0] - size // 2,
+                                               height // 2 + cell[1] * size + 1 - offset[1] - size // 2,
                                                size - 2, size - 2))
 
         pygame.draw.rect(screen,
-                         (128, 64, 48), (width // 2 + (exit_ladder[0] - player.pos[0]) * size + 1,
-                                         height // 2 + (exit_ladder[1] - player.pos[1]) * size + 1,
+                         (128, 64, 48), (width // 2 + exit_ladder[0] * size + 1 - offset[0] - size // 2,
+                                         height // 2 + exit_ladder[1] * size + 1 - offset[1] - size // 2,
                                          size - 2, size - 2))
 
         for en in enemies:
             pygame.draw.circle(
                 screen, (0, 0, 255),
-                (width // 2 + size // 2 - size * player.pos[0] + en.pos[0] * size,
-                 height // 2 + size // 2 - size * player.pos[1] + en.pos[1] * size),
+                (width // 2 + size // 2 - offset[0] + en.pos[0] * size - size // 2,
+                 height // 2 + size // 2 - offset[1] + en.pos[1] * size - size // 2),
                 size // 2)
 
-        pygame.draw.circle(screen, (255, 0, 0), (width // 2 + size // 2, height // 2 + size // 2),
-                           size // 2)  # игрок
+        if focused:
+            pygame.draw.circle(screen, (255, 0, 0), (width // 2, height // 2),
+                               size // 2)  # игрок
+        else:
+            pygame.draw.circle(screen, (255, 0, 0),
+                               (width // 2 - drag_offset[0] + player.pos[0] * size,
+                                height // 2 - drag_offset[1] + player.pos[1] * size),
+                               size // 2)  # игрок
         pygame.draw.arc(screen, (255, 255, 0), (50, height - 100, 50, 50), 90 / 57.2958,
                         360 / 57.2958 * (time_for_next / time_rest) +
                         90 / 57.2958, 25)
