@@ -2,7 +2,7 @@ import pygame
 
 from glob import glob
 from PIL import Image
-from random import choices, choice, randint, uniform
+from random import choices, choice, randint, uniform, random
 from math import ceil
 
 STRUCTURES_RANGE = [10, 50]  # from: _ to: _
@@ -115,8 +115,9 @@ class Player(Character):
             self.attack(event)
         if self.hp <= 0:
             global state, focused, drag_offset
+            player_death = pygame.mixer.Sound('data\\sounds\\deaths\\player.ogg')
+            player_death.play()
             state = "end window"
-            # звук смерти
             focused = False
             drag_offset = [self.pos[0] * size, self.pos[1] * size]
 
@@ -160,6 +161,7 @@ class BasicEnemy(Character):
     def __init__(self, hp, damage, pos, view, moves_per_step, image):
         self.moves_per_step = moves_per_step
         super().__init__(hp, pos, damage, image)
+        self.pos = pos
         self.cells_of_view = sphere_of_cells(view)
         self.found_radius = view // 2
         self.show_hp = False
@@ -171,7 +173,14 @@ class BasicEnemy(Character):
                                              round(self.hp / self.max_hp * self.rect.width), 1))
         if self.hp <= 0:
             self.kill()
-            # звук смерти
+            # добавить шанс на хилку после смерти?
+            # исправить звуки смерти и ударов противников
+            death = pygame.mixer.Sound('data\\sounds\\deaths\\FastEnemy.ogg')
+            if True:
+                heart = Heart(self.pos)
+                screen.blit(pygame.Surface((30, 30)), heart.rect)
+            death.set_volume(0.3)
+            death.play()
         if your_move:
             self.make_step()
         elif check_attack:
@@ -286,6 +295,23 @@ class AnimatedAttack(pygame.sprite.Sprite):
             self.kill()
 
 
+def on_pickup():
+    if player.hp + 3 > player.max_hp:
+        diff = player.max_hp - player.hp
+        player.hp += diff
+    else:
+        player.hp += 3
+
+
+class Heart(pygame.sprite.Sprite):
+    def __init__(self, pos=None, ):
+        super().__init__()
+        pygame.sprite.Sprite.__init__(self)
+        self.pos = pos
+        self.image = pygame.image.load('heart.png')
+        self.rect = self.image.get_rect(topleft=(self.pos[0], self.pos[1]))
+
+
 items = [[0, "item1.png"], [1, "item2.png"], [2, "item3.png"]]
 weapons = [Weapon([[0, -1], [0, -2]], 10, "sword1.png")]
 
@@ -398,8 +424,8 @@ def make_new_level():
     numb_enemies = int(structures * uniform(ENEMIES_MULTI_RANGE[0], ENEMIES_MULTI_RANGE[1]))
     for i in range(numb_enemies):
         cell = choice(list(flat))
-        enemies.add(choices([Enemy(30 * hardness, 1, cell, round(10 * hardness), 1, "Enemy.png"),
-                             FastEnemy(20, 1, cell, round(15 * hardness), 3, "FastEnemy.png")],
+        enemies.add(choices([Enemy(30 * hardness, 1, cell, round(10 * hardness), 1, "Enemy_test.png"),
+                             FastEnemy(20, 1, cell, round(15 * hardness), 3, "FastEnemy_test.png")],
                             weights=[6, player.floor])[0])
         flat.pop(cell)
 
@@ -433,7 +459,7 @@ def make_surface_field():
     """ниже создается surface, где отображены все клетки сразу, которые не будут меняться"""
     list_of_tiles = []
     for tile in [f"floor{i}.png" for i in range(1, 5)]:
-        floor = load_image("floors/" + tile)
+        floor = load_image("floors/floor1_test.png")
         floor = pygame.transform.scale(floor, (FOCUSE_RANGE[1], FOCUSE_RANGE[1]))
         list_of_tiles.append(floor)
 
@@ -502,6 +528,8 @@ def draw_main_game():
             elif event.key == pygame.K_e:
                 if player.pos == exit_ladder and (usually_lvl or len(enemies) == 0):
                     player.floor += 1
+                    exit_sound = pygame.mixer.Sound('data\\sounds\\other\\exit_sound.ogg')
+                    exit_sound.play()
                     make_new_level()
                 elif player.pos == chest and not chest_looted:
                     state = "choice item"
@@ -510,6 +538,8 @@ def draw_main_game():
                     floor_weapons.remove(result[0])
                     floor_weapons.append([result[0][0], player.weapon_now])
                     player.weapon_now = result[0][1]
+                elif player.pos == Heart and player.hp != player.max_hp:
+                    on_pickup()
         elif event.type == MYEVENTTYPE:
             if not can_go_next:
                 time_for_next += timer_speed
@@ -519,7 +549,6 @@ def draw_main_game():
         if pygame.key.get_pressed() and can_go_next and all(
                 [len(enemy.animated_row) == 0 for enemy in enemies]):
             player.pressed_key(pygame.key.get_pressed())
-
     offset = get_offset()
     draw_field(offset)
     draw_player(offset)
@@ -606,6 +635,7 @@ def draw_start_window(start_window_sizes=[800, 100], hardness_under=100):
                 player_group = pygame.sprite.Group()
                 player = Player(10, (0, 0), 5, "player.png")
                 player_group.add(player)
+
                 make_new_level()
                 return
             elif event.type == pygame.MOUSEBUTTONDOWN and start_window_borders[0] <= \
@@ -750,6 +780,7 @@ def draw_choice_item(item_size=200):
 
     while state == "choice item":
         screen.fill("black")
+
         for event in pygame.event.get():
             if event.type == pygame.QUIT or (
                     event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE):
@@ -758,6 +789,9 @@ def draw_choice_item(item_size=200):
                 if result := [item.update(event.pos) for item in items_group
                               if item.update(event.pos) is not None]:
                     use_item(result[0])
+                    chest_sound = pygame.mixer.Sound('data\\sounds\\other\\chest_open.ogg')
+                    chest_sound.set_volume(0.4)
+                    chest_sound.play()
                     chest_looted = True
                     state = "main"
                     break
@@ -768,6 +802,8 @@ def draw_choice_item(item_size=200):
         pygame.display.flip()
 
 
+# добавить картинок к вещам
+# добавить ещё вещей?
 def use_item(index):
     player.items.append(index)
     if index == 0:
@@ -831,11 +867,12 @@ clock = pygame.time.Clock()
 pygame.time.set_timer(MYEVENTTYPE, timer_speed)
 attacks_group = pygame.sprite.Group()
 places = [load_new_place(f"places/place{i}.txt") for i in range(1, 6)]
-chest_im = load_image("chest.png")
+chest_im = load_image("chest_test.png")
 exit_ladder_im = load_image("exit_ladder.png")
 icon = pygame.image.load('heart.png')
 pygame.display.set_icon(icon)
 pygame.display.set_caption('roguelike dungeon')
+print('testing')
 
 if __name__ == '__main__':
     state = "start window"
