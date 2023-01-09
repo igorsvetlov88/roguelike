@@ -175,12 +175,11 @@ class BasicEnemy(Character):
             self.kill()
             # добавить шанс на хилку после смерти?
             # исправить звуки смерти и ударов противников
-            death = pygame.mixer.Sound('data\\sounds\\deaths\\FastEnemy.ogg')
-            if True:
-                heart = Heart(self.pos)
-                screen.blit(pygame.Surface((30, 30)), heart.rect)
+            death = pygame.mixer.Sound(f'data\\sounds\\deaths\\{self.__class__.__name__}.ogg')
             death.set_volume(0.3)
             death.play()
+            # if random() < 0.25: heart = Heart(self.pos) floor_field.draw(heart, (width // 2 + chest[0] * size -
+            # size // 2 - offset[0], height // 2 + chest[1] * size - size // 2 - offset[1]))
         if your_move:
             self.make_step()
         elif check_attack:
@@ -207,13 +206,8 @@ class BasicEnemy(Character):
             if result and len(path) < self.moves_per_step:  # если остались ходы
                 player.hp -= self.damage
                 self.animated_row.append("attack")
-                # сделать проверку на класс
-                if __class__.__name__ == Enemy:
-                    skele_attack = pygame.mixer.Sound(choice(glob("data\\sounds\\skeleton\\*.ogg")))
-                    skele_attack.play()
-                else:
-                    spider_attack = pygame.mixer.Sound(choice(glob("data\\sounds\\spider\\*.ogg")))
-                    spider_attack.play()
+                attack = pygame.mixer.Sound(choice(glob(f"data\\sounds\\monsters\\{self.__class__.__name__}*.ogg")))
+                attack.play()
                 AnimatedAttack((width // 2 + need_pos[0] * size, height // 2 + need_pos[1] * size))
         else:
             self.make_random_step()
@@ -494,6 +488,10 @@ def draw_main_game():
     global drag_offset, drag, focused, can_go_next, time_for_next, floor_field_sized, size, \
         state, chest_looted, usually_lvl, floor_weapons
     screen.fill('black')
+    # муз. фон появился, но звук ужасный
+    # background = pygame.mixer.Sound('data\\sounds\\other\\test.mp3')
+    # background.set_volume(0.3)
+    # background.play(loops=-1)
     for event in pygame.event.get():
         if event.type == pygame.QUIT or (
                 event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE):
@@ -866,6 +864,7 @@ time_rest = 250  # промежуток между ходами в миллис�
 clock = pygame.time.Clock()
 pygame.time.set_timer(MYEVENTTYPE, timer_speed)
 attacks_group = pygame.sprite.Group()
+# добавить разные цвета плиток?
 places = [load_new_place(f"places/place{i}.txt") for i in range(1, 6)]
 chest_im = load_image("chest_test.png")
 exit_ladder_im = load_image("exit_ladder.png")
