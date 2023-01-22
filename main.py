@@ -234,9 +234,7 @@ class BasicEnemy(Character):
                     player.kills += 1
                     player.count += 100
                     self.kill()
-                    # TODO: добавить звуки мобам на последнем этаже
-                    death = pygame.mixer.Sound(f'data\\sounds\\deaths'
-                                               f'\\{self.__class__.__name__.lower()}.ogg')
+                    death = pygame.mixer.Sound(f'data\\sounds\\deaths\\{self.__class__.__name__.lower()}.ogg')
                     death.set_volume(volume)
                     death.play()
                     if randint(0, 3) == 0:
@@ -324,7 +322,7 @@ class FastEnemy(BasicEnemy):
 class CubeEnemy(BasicEnemy):
     def __init__(self, *args):
         super().__init__(*args)
-
+    # они не атакуют персонажа
     def attack_player(self, need_pos):
         self.animated_row.append("attack")
 
