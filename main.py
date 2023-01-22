@@ -143,6 +143,7 @@ class Player(Character):
         self.moves_per_step = 1
         self.moves_last = self.moves_per_step
         self.kills = 0
+        self.count = 0
         self.items = []
         self.weapon_now = Weapon([[0, -1]], 5, "sword.png")
 
@@ -154,6 +155,7 @@ class Player(Character):
             self.attack(event)
         if self.hp <= 0:
             global state, focused, drag_offset
+            player_death = pygame.mixer.Sound('data\\sounds\\deaths\\player.ogg')
             player_death = pygame.mixer.Sound('data\\sounds\\deaths\\player.ogg')
             player_death.set_volume(volume)
             player_death.play()
@@ -226,10 +228,13 @@ class BasicEnemy(Character):
             if self.rect.colliderect(rect):
                 self.hp -= player.damage + player.weapon_now.damage
                 # TODO: звук получения урона, здесь наверное, должен быть
+                # я думаю звука удара мобов достаточно
                 self.show_hp = True
                 if self.hp <= 0:
                     player.kills += 1
+                    player.count += 100
                     self.kill()
+                    # TODO: добавить звуки мобам на последнем этаже
                     death = pygame.mixer.Sound(f'data\\sounds\\deaths'
                                                f'\\{self.__class__.__name__.lower()}.ogg')
                     death.set_volume(volume)
@@ -590,6 +595,7 @@ def draw_main_game():
             elif event.key == pygame.K_e:
                 if player.pos == exit_ladder and (usually_lvl or len(enemies) == 0):
                     player.floor += 1
+                    player.count += 1000
                     exit_sound = pygame.mixer.Sound('data\\sounds\\other\\exit_sound.ogg')
                     exit_sound.set_volume(volume)
                     exit_sound.play()
@@ -768,6 +774,30 @@ def draw_start_window(start_window_sizes=[800, 100],
         pygame.display.flip()
 
 
+def get_max_total(count):
+    try:
+        with open('data\\max_result.txt', mode='r') as check_res:
+            check = check_res.read().split()
+            record = int(check[0])
+            if count > record:
+                record = count
+            with open('data\\max_result.txt', mode='w') as replace_total:
+                replace_total.write(f'{record}\t{player.kills}\t{player.floor}')
+            return record
+
+    except FileNotFoundError:
+        with open('data\\max_result.txt', mode='w') as write_res:
+            write_res.write(f'{player.count}\t{player.kills}\t{player.floor}')
+        with open('data\\max_result.txt', mode='r') as check_res:
+            check = check_res.read().split()
+            record = int(check[0])
+            if count >= record:
+                record = count
+            with open('data\\max_result.txt', mode='w') as replace_total:
+                replace_total.write(f'{record}\t{player.kills}\t{player.floor}')
+            return record
+
+
 def draw_end_window(end_window_sizes=[200, 400], exit_button_sizes=[200, 50],
                     text_under_end_window=20):
     global size, drag_offset, drag, focused, state, floor_field_sized, chest_looted, usually_lvl
@@ -817,6 +847,10 @@ def draw_end_window(end_window_sizes=[200, 400], exit_button_sizes=[200, 50],
     screen.blit(text, (end_window_borders[0] + 10, end_window_borders[1] + 10))
     text = pygame.font.Font(None, 30).render(f"kills - {player.kills}", True, (255, 255, 255))
     screen.blit(text, (end_window_borders[0] + 10, end_window_borders[1] + 30))
+    text = pygame.font.Font(None, 30).render(f'total - {player.count}', True, (255, 255, 255))
+    screen.blit(text, (end_window_borders[0] + 10, end_window_borders[1] + 50))
+    text = pygame.font.Font(None, 30).render(f'record - {get_max_total(player.count)}', True, (255, 255, 255))
+    screen.blit(text, (end_window_borders[0] + 10, end_window_borders[1] + 70))
 
     pygame.draw.rect(screen, (255, 255, 255), (end_window_borders[0] +
                                                end_window_borders[2] // 2 -
